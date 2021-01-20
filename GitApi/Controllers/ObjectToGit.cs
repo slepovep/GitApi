@@ -9,6 +9,7 @@ using System.IO;
 using GitApi;
 using Microsoft.Extensions.Configuration;
 using System.Management.Automation;
+//PowerShell.SDK
 
 namespace GitApi.Controllers
 {
@@ -25,20 +26,33 @@ namespace GitApi.Controllers
         }
 
         [HttpPost]
-        //[Produces("application/json")]
         public string ObjectPush()
         {
             OracleObect oracleobect = new OracleObect();
             var pathGit = Configuration["PathGit"];
+            var urlGit = Configuration["UrlGit"];
+            var keyserver = Configuration["ApiKey"];  //parusyp to MD5 
 
             //считывание параметров из заголовка запроса
             oracleobect.NameDB = Request.Headers["NameDB"].ToString();
             oracleobect.NameObject = Request.Headers["NameObject"].ToString();
+            string apikey = Request.Headers["ApiKey"].ToString();
+            string username = "\"" + Request.Headers["UserName"].ToString() + "\"";
+            string usermail = "\"" + Request.Headers["UserMail"].ToString() + "\"";
+            string commitmes = "'" + Request.Headers["CommitMes"].ToString() + "'";
 
             string repository = pathGit + oracleobect.NameDB; // каталог к git repository
             string path = pathGit + oracleobect.NameDB + @"\";
             string writePath = path + oracleobect.NameObject;
             string result = "OK";
+            string commithash = "";
+
+            //проверка APIKEY
+            if (keyserver != apikey)
+            {
+                result = "Error ApiKey";
+                return result;
+            }
 
             //поиск и создание каталога на диске
             DirectoryInfo dirInfo = new DirectoryInfo(path);
@@ -61,9 +75,6 @@ namespace GitApi.Controllers
                     sw.WriteLine(oracleobect.TextObject);
                 }
                 //отправка в репозиторий GIT
-                string username = "\""+"SLEPOV"+"\"";
-                string usermail = "\""+"slepov1.ep@gmail.com"+ "\"";
-
                 using (PowerShell powershell = PowerShell.Create())
                 {
                     // this changes from the user folder that PowerShell starts up with to your git repository
@@ -72,16 +83,21 @@ namespace GitApi.Controllers
                     powershell.AddScript(@"git config user.name " + username);
                     powershell.AddScript(@"git config user.email " + usermail);
 
-
                     powershell.AddScript(@"git init");
                     powershell.AddScript(@"git add *");
-                    powershell.AddScript(@"git commit -m 'git commit from PowerShell in C#'");
+                    powershell.AddScript(@"git commit -m " + commitmes);
                     //powershell.AddScript(@"git remote add "+ oracleobect.NameDB +" https://github.com/slepovep/" + oracleobect.NameDB + ".git");  //https
-                    powershell.AddScript(@"git remote set-url " + oracleobect.NameDB + " git@bitbucket.org:parustest/" + oracleobect.NameDB + ".git"); //SSH
-
+                    powershell.AddScript(@"git remote set-url " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git"); //SSH
                     powershell.AddScript(@"git push "+ oracleobect.NameDB +" master");
+                    powershell.AddScript(@"git log -1 --pretty=format:" + "\"" + "%H" + "\"");
+                    //powershell.Invoke();
 
-                    powershell.Invoke();
+                    var psresults = powershell.Invoke();
+                    foreach (var psresult in psresults)
+                    {
+                        commithash = psresult.ToString();
+                    }
+                    result = result + '|' + commithash;
                 }
 
             }
