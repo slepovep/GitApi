@@ -46,6 +46,7 @@ namespace GitApi.Controllers
             string writePath = path + oracleobect.NameObject;
             string result = "OK";
             string commithash = "";
+            string gitcommands = "";
 
             //проверка APIKEY
             if (keyserver != apikey)
@@ -84,10 +85,24 @@ namespace GitApi.Controllers
                 startInfo.Verb = "runas";
                 //startInfo.Arguments = "cd " + repository.Substring(0, 2);
 
-                startInfo.WorkingDirectory = @"E:\GIT\MIAC";
+                startInfo.WorkingDirectory = @"E:\GIT\CBPAO";
                 //startInfo.Arguments = "cd /d {repository}";
-                startInfo.Arguments = @"git init";
+
+                gitcommands = @"cd /d E:\GIT\CBPAO" + " & " +
+                              "git init" +" & "+
+                              "git config user.name " + username + " & " +
+                              "git config user.email " + usermail + " & " +
+                              "git add *" + " & " +
+                              "git commit -m " + commitmes + " & " +
+                              "git remote add " + oracleobect.NameDB + " " + urlGit + oracleobect.NameDB + ".git" + " & " + //SSH
+                              "git remote set-url " + oracleobect.NameDB + " " + urlGit + oracleobect.NameDB + ".git" + " & " + //SSH
+                              "git push " + oracleobect.NameDB + " master" + " & " +
+                              "git log -1 --pretty=format:" + "\"" + "%H" + "\"";
+
+                startInfo.Arguments = gitcommands;
                 /*
+                startInfo.Arguments = @"git init";
+                
                 startInfo.Arguments = @"git config user.name " + username;
                 startInfo.Arguments = @"git config user.email " + usermail;
                 startInfo.Arguments = @"git init";
@@ -108,7 +123,7 @@ namespace GitApi.Controllers
                 process.StartInfo.RedirectStandardOutput = true;
 
                 process.Start();
-
+                /*
                 process.StandardInput.WriteLine("git config user.name " + username);
                 process.StandardInput.WriteLine("git config user.email " + usermail);
                 process.StandardInput.WriteLine("git init");
@@ -118,18 +133,20 @@ namespace GitApi.Controllers
                 process.StandardInput.WriteLine("git remote set-url " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git");
                 process.StandardInput.WriteLine("git push " + oracleobect.NameDB + " master");
                 process.StandardInput.WriteLine("git log -1 --pretty=format:" + "\"" + "%H" + "\"");
-
+                */
                 
-                while (!process.StandardOutput.EndOfStream)
+                /*while (!process.StandardOutput.EndOfStream)
                 {
                     commithash = process.StandardOutput.ReadLine();
-                }
+                }*/
 
-                process.StandardInput.WriteLine("exit");
-                process.WaitForExit();
+                //process.StandardInput.WriteLine("exit");
+
+                commithash = process.StandardOutput.ReadToEnd(); 
+                //process.WaitForExit();
   
                 
-                result = result + '|' + commithash;
+                result = result + '|' + commithash + '|' + gitcommands;
                 /*
                 using (PowerShell powershell = PowerShell.Create())
                 {
