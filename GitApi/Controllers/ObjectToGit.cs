@@ -50,7 +50,7 @@ namespace GitApi.Controllers
             //проверка APIKEY
             if (keyserver != apikey)
             {
-                result = "Error ApiKey";
+                result = "Error ApiKey " + apikey;
                 return result;
             }
 
@@ -73,8 +73,64 @@ namespace GitApi.Controllers
                 using (StreamWriter sw = new StreamWriter(writePath, false, System.Text.Encoding.Default))
                 {
                     sw.WriteLine(oracleobect.TextObject);
+                    sw.Close();
                 }
+
                 //отправка в репозиторий GIT
+                System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+                startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                
+                startInfo.FileName = "cmd.exe";
+                startInfo.Verb = "runas";
+                //startInfo.Arguments = "cd " + repository.Substring(0, 2);
+
+                startInfo.WorkingDirectory = @"E:\GIT\MIAC";
+                //startInfo.Arguments = "cd /d {repository}";
+                startInfo.Arguments = @"git init";
+                /*
+                startInfo.Arguments = @"git config user.name " + username;
+                startInfo.Arguments = @"git config user.email " + usermail;
+                startInfo.Arguments = @"git init";
+                startInfo.Arguments = @"git add *";
+                startInfo.Arguments = @"git commit -m " + commitmes;
+                //startInfo.Arguments = "git remote add " + oracleobect.NameDB + " https://github.com/slepovep/" + oracleobect.NameDB + ".git"; //https
+                startInfo.Arguments = @"git remote add " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git"; //SSH
+                startInfo.Arguments = @"git remote set-url " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git"; //SSH
+                startInfo.Arguments = @"git push " + oracleobect.NameDB + " master";
+                startInfo.Arguments = @"git log -1 --pretty=format:" + "\"" + "%H" + "\"";
+                startInfo.Arguments = @"exit;";
+                */
+
+                System.Diagnostics.Process process = new System.Diagnostics.Process();
+                process.StartInfo = startInfo;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.RedirectStandardInput = true;
+                process.StartInfo.RedirectStandardOutput = true;
+
+                process.Start();
+
+                process.StandardInput.WriteLine("git config user.name " + username);
+                process.StandardInput.WriteLine("git config user.email " + usermail);
+                process.StandardInput.WriteLine("git init");
+                process.StandardInput.WriteLine("git add *");
+                process.StandardInput.WriteLine("git commit -m " + commitmes);
+                process.StandardInput.WriteLine("git remote add " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git");
+                process.StandardInput.WriteLine("git remote set-url " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git");
+                process.StandardInput.WriteLine("git push " + oracleobect.NameDB + " master");
+                process.StandardInput.WriteLine("git log -1 --pretty=format:" + "\"" + "%H" + "\"");
+
+                
+                while (!process.StandardOutput.EndOfStream)
+                {
+                    commithash = process.StandardOutput.ReadLine();
+                }
+
+                process.StandardInput.WriteLine("exit");
+                process.WaitForExit();
+  
+                
+                result = result + '|' + commithash;
+                /*
                 using (PowerShell powershell = PowerShell.Create())
                 {
                     // this changes from the user folder that PowerShell starts up with to your git repository
@@ -98,7 +154,7 @@ namespace GitApi.Controllers
                         commithash = psresult.ToString();
                     }
                     result = result + '|' + commithash;
-                }
+                }*/
 
             }
             catch (Exception ex)
