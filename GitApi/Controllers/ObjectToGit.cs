@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.IO;
 using GitApi;
 using Microsoft.Extensions.Configuration;
-using System.Management.Automation;
+//using System.Management.Automation;
 //PowerShell.SDK
 
 namespace GitApi.Controllers
@@ -39,7 +39,7 @@ namespace GitApi.Controllers
             string apikey = Request.Headers["ApiKey"].ToString();
             string username = "\"" + Request.Headers["UserName"].ToString() + "\"";
             string usermail = "\"" + Request.Headers["UserMail"].ToString() + "\"";
-            string commitmes = "'" + Request.Headers["CommitMes"].ToString() + "'";
+            string commitmes = "\"" + Request.Headers["CommitMes"].ToString() + "\"";
 
             string repository = pathGit + oracleobect.NameDB; // каталог к git repository
             string path = pathGit + oracleobect.NameDB + @"\";
@@ -80,16 +80,19 @@ namespace GitApi.Controllers
                 //отправка в репозиторий GIT
                 System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
                 startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                
-                startInfo.FileName = "cmd.exe";
+                startInfo.RedirectStandardError = true;
+
+                startInfo.FileName = @"C:\Windows\System32\cmd.exe";
+                //startInfo.FileName = @"C:\Program Files\Git\git-bash.exe";
+                //startInfo.FileName = @"C:\Program Files\Git\git-cmd.exe";
                 startInfo.Verb = "runas";
                 //startInfo.Arguments = "cd " + repository.Substring(0, 2);
 
                 startInfo.WorkingDirectory = @"E:\GIT\CBPAO";
                 //startInfo.Arguments = "cd /d {repository}";
 
-                gitcommands = @"cd /d E:\GIT\CBPAO" + " & " +
-                              "git init" +" & "+
+                gitcommands = @"/C cd /d E:\GIT\CBPAO" + " & " +
+                              "git init" + " & " +
                               "git config user.name " + username + " & " +
                               "git config user.email " + usermail + " & " +
                               "git add *" + " & " +
@@ -98,7 +101,7 @@ namespace GitApi.Controllers
                               "git remote set-url " + oracleobect.NameDB + " " + urlGit + oracleobect.NameDB + ".git" + " & " + //SSH
                               "git push " + oracleobect.NameDB + " master" + " & " +
                               "git log -1 --pretty=format:" + "\"" + "%H" + "\"";
-
+                
                 startInfo.Arguments = gitcommands;
                 /*
                 startInfo.Arguments = @"git init";
@@ -123,6 +126,7 @@ namespace GitApi.Controllers
                 process.StartInfo.RedirectStandardOutput = true;
 
                 process.Start();
+
                 /*
                 process.StandardInput.WriteLine("git config user.name " + username);
                 process.StandardInput.WriteLine("git config user.email " + usermail);
@@ -134,19 +138,21 @@ namespace GitApi.Controllers
                 process.StandardInput.WriteLine("git push " + oracleobect.NameDB + " master");
                 process.StandardInput.WriteLine("git log -1 --pretty=format:" + "\"" + "%H" + "\"");
                 */
-                
-                /*while (!process.StandardOutput.EndOfStream)
+
+                while (!process.StandardOutput.EndOfStream)
                 {
-                    commithash = process.StandardOutput.ReadLine();
-                }*/
+                    commithash = commithash + " " + process.StandardOutput.ReadLine();
+                }
 
                 //process.StandardInput.WriteLine("exit");
+                //string errors = "";
+                commithash = process.StandardOutput.ReadToEnd();
+                string errors = process.StandardError.ReadToEnd();
+                process.WaitForExit(10);
+                process.Close();
 
-                commithash = process.StandardOutput.ReadToEnd(); 
-                //process.WaitForExit();
-  
-                
-                result = result + '|' + commithash + '|' + gitcommands;
+
+                result = result + '|' + commithash + '|' + errors + '|' + gitcommands;
                 /*
                 using (PowerShell powershell = PowerShell.Create())
                 {
