@@ -40,13 +40,28 @@ namespace GitApi.Controllers
             string username = "\"" + Request.Headers["UserName"].ToString() + "\"";
             string usermail = "\"" + Request.Headers["UserMail"].ToString() + "\"";
             string commitmes = "\"" + Request.Headers["CommitMes"].ToString() + "\"";
+            string directory = Request.Headers["Directory"].ToString();
+            string path = pathGit + oracleobect.NameDB;
+            string repository = path;
+            string writePath = "";
 
-            string repository = pathGit + oracleobect.NameDB; // каталог к git repository
-            string path = pathGit + oracleobect.NameDB + @"\";
-            string writePath = path + oracleobect.NameObject;
+            if (!string.IsNullOrEmpty(directory)) 
+            {
+                path = path + "\\" + directory + @"\";
+                writePath = path + oracleobect.NameObject;
+            }
+            else
+			{
+                path = path + @"\";
+                writePath = path + @"\" + oracleobect.NameObject; 
+            }
+
+            repository = repository.Replace("\\", @"\"); // каталог к git repository
             string result = "OK";
             string commithash = "";
             string gitcommands = "";
+            string gitoutput = "";
+            string stroutput = "";
 
             //проверка APIKEY
             if (keyserver != apikey)
@@ -55,16 +70,16 @@ namespace GitApi.Controllers
                 return result;
             }
 
-            //поиск и создание каталога на диске
-            DirectoryInfo dirInfo = new DirectoryInfo(path);
-            if (!dirInfo.Exists)
-            {
-                dirInfo.Create();
-            }
-
             //создание файла на диске
             try
             {
+                //поиск и создание каталога на диске
+                DirectoryInfo dirInfo = new DirectoryInfo(path);
+                if (!dirInfo.Exists)
+                {
+                    dirInfo.Create();
+                }
+
                 //считывание тела запроса
                 using (var reader = new StreamReader(Request.Body))
 				{
@@ -81,18 +96,12 @@ namespace GitApi.Controllers
                 System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
                 startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
                 startInfo.RedirectStandardError = true;
-
-                startInfo.FileName = @"C:\Windows\System32\cmd.exe";
-                //startInfo.FileName = @"C:\Program Files\Git\git-bash.exe";
-                //startInfo.FileName = @"C:\Program Files\Git\git-cmd.exe";
+                startInfo.FileName = "cmd.exe";
                 startInfo.Verb = "runas";
-                //startInfo.Arguments = "cd " + repository.Substring(0, 2);
+                startInfo.WorkingDirectory = repository;
+   
 
-                startInfo.WorkingDirectory = @"E:\GIT\CBPAO";
-                //startInfo.Arguments = "cd /d {repository}";
-
-                gitcommands = @"/C cd /d E:\GIT\CBPAO" + " & " +
-                              "git init" + " & " +
+                gitcommands = @"/C git init" + " & " +
                               "git config user.name " + username + " & " +
                               "git config user.email " + usermail + " & " +
                               "git add *" + " & " +
@@ -103,21 +112,6 @@ namespace GitApi.Controllers
                               "git log -1 --pretty=format:" + "\"" + "%H" + "\"";
                 
                 startInfo.Arguments = gitcommands;
-                /*
-                startInfo.Arguments = @"git init";
-                
-                startInfo.Arguments = @"git config user.name " + username;
-                startInfo.Arguments = @"git config user.email " + usermail;
-                startInfo.Arguments = @"git init";
-                startInfo.Arguments = @"git add *";
-                startInfo.Arguments = @"git commit -m " + commitmes;
-                //startInfo.Arguments = "git remote add " + oracleobect.NameDB + " https://github.com/slepovep/" + oracleobect.NameDB + ".git"; //https
-                startInfo.Arguments = @"git remote add " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git"; //SSH
-                startInfo.Arguments = @"git remote set-url " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git"; //SSH
-                startInfo.Arguments = @"git push " + oracleobect.NameDB + " master";
-                startInfo.Arguments = @"git log -1 --pretty=format:" + "\"" + "%H" + "\"";
-                startInfo.Arguments = @"exit;";
-                */
 
                 System.Diagnostics.Process process = new System.Diagnostics.Process();
                 process.StartInfo = startInfo;
@@ -127,33 +121,21 @@ namespace GitApi.Controllers
 
                 process.Start();
 
-                /*
-                process.StandardInput.WriteLine("git config user.name " + username);
-                process.StandardInput.WriteLine("git config user.email " + usermail);
-                process.StandardInput.WriteLine("git init");
-                process.StandardInput.WriteLine("git add *");
-                process.StandardInput.WriteLine("git commit -m " + commitmes);
-                process.StandardInput.WriteLine("git remote add " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git");
-                process.StandardInput.WriteLine("git remote set-url " + oracleobect.NameDB + urlGit + oracleobect.NameDB + ".git");
-                process.StandardInput.WriteLine("git push " + oracleobect.NameDB + " master");
-                process.StandardInput.WriteLine("git log -1 --pretty=format:" + "\"" + "%H" + "\"");
-                */
-
                 while (!process.StandardOutput.EndOfStream)
                 {
-                    commithash = commithash + " " + process.StandardOutput.ReadLine();
+                    stroutput = process.StandardOutput.ReadLine();
+                    gitoutput = gitoutput + " " + stroutput;
                 }
-
-                //process.StandardInput.WriteLine("exit");
-                //string errors = "";
-                commithash = process.StandardOutput.ReadToEnd();
+                commithash = stroutput;
+                gitoutput = gitoutput.Substring(2);
                 string errors = process.StandardError.ReadToEnd();
-                process.WaitForExit(10);
+                process.WaitForExit();
                 process.Close();
 
 
-                result = result + '|' + commithash + '|' + errors + '|' + gitcommands;
-                /*
+                result = result + '|' + commithash + '|' + gitoutput + '|' + errors + '|' + gitcommands;
+
+                /*  //использование PowerShell
                 using (PowerShell powershell = PowerShell.Create())
                 {
                     // this changes from the user folder that PowerShell starts up with to your git repository
@@ -182,7 +164,7 @@ namespace GitApi.Controllers
             }
             catch (Exception ex)
             {
-                result = ex.Message;
+                result = ex.Message + repository;
                 //throw ex;
             }
             return result;
